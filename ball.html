@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title></title>
+    <script src="./jquery-1.11.2.js"></script>
+    <style>
+        body,html{
+            width:100%;
+            height:100%;
+        }
+        body{
+            position:relative;
+            overflow:hidden;
+        }
+        .ball{
+            width:96px;
+            height:123px;
+            background-image:url(img/balloon.png);
+            position:absolute;
+        }
+        .gunBox{
+            height:96px;
+            width:96px;
+            background:url(img/gun.png) no-repeat center center;
+            position:absolute;
+            z-index:2;
+            display:none;
+            cursor:none;
+        }
+        .blow{
+            animation:blow 0.5s forwards;
+        }
+        @keyframes blow{
+            0%{
+                transform:scale(1);
+            }
+            100%{
+                transform:scale(5);
+                opacity:0;
+            }
+        }
+        .score{
+            background-color: black;
+            color: red;
+            height: 20px;
+            position: absolute;
+            left:0px;
+            top:0px;
+        }
+    </style>
+</head>
+<body>
+<!--<button id="btn1">开始游戏</button>
+<button id="btn2">结束游戏</button>-->
+<script>
+//生成随机数(m,n)
+/*function radom(m,n){
+    return Math.round(Math.random()*(m-n)*10+m);
+}*/
+function ranNum(m,n){
+    return Math.floor( Math.random()*(n-m+1) ) + m ;
+}
+
+for(var i = 0;i<100;i++){
+    ranNum(0,10);
+}
+//背景
+function bg(){
+  this.src="url(img/bg.jpg)";
+  this.born=function(){
+        $("body").css("background",this.src+"no-repeat center center");
+        $("body").css("background-size","100% 100%");
+  }
+}
+//气球
+function ball(){
+  /* this.ball=$('<div class="ball"></div>');
+    $("body").append(this.ball);*/
+    this.ball = document.createElement('div');
+    this.ball.className = 'ball';
+    document.body.appendChild(this.ball);
+    this.reborn();
+    var othis = this;
+    this.ball.addEventListener('animationend',function(){
+        //console.info(this);
+        this.className = 'ball';
+        othis.reborn();
+    })
+}
+ball.prototype.reborn=function(){   //定义新生气球参数
+    /*this.ball.css("left","ranNum(0,document.documentElement.offsetWidth - this.ball.offsetWidth) + 'px'");  //定义新生气球初始位置
+    this.ball.css("top","ranNum(document.documentElement.offsetHeight-200,document.documentElement.offsetHeight-100) + 'px'"); //定义新生气球初始高度在下方200~100之间
+    this.mark = ranNum(1,8);  //气球的分值1~8
+    this.ball.css("backgroundPosition","-(this.mark-1)%4*96+'px '+ -Math.floor(this.mark/5)*123+'px'");  //气球尺寸96*123，从气球图片选取某一个
+    this.speed = this.mark*1.2;  //分数越高，移动越快*/
+    this.ball.style.left = ranNum(0,document.documentElement.offsetWidth - this.ball.offsetWidth) + 'px';  //定义新生气球初始位置
+    this.ball.style.top = ranNum(document.documentElement.offsetHeight-200,document.documentElement.offsetHeight-100) + 'px'; //定义新生气球初始高度在下方200~100之间
+    this.mark = ranNum(1,8);  //气球的分值1~8
+    this.ball.style.backgroundPosition = -(this.mark-1)%4*96+'px '+ -Math.floor(this.mark/5)*123+'px';  //气球尺寸96*123，从气球图片选取某一个
+    this.speed = this.mark*1.2;  //分数越高，移动越快
+}
+ball.prototype.move = function() {
+    var oldTop = this.ball.offsetTop;  //初始化时气球的高度
+    var newTop = oldTop - this.speed;     //气球移动后高度
+    //this.ball.css("top","newTop + 'px'");
+    this.ball.style.top = newTop+'px';
+    if (oldTop <= -123) {       //气球全部离开上界线时再重生新气球
+        this.reborn();
+    }
+}
+ball.prototype.goDie = function(){
+    this.ball.className = 'blow';   //气球被打中后改变样式
+    score.update(this.mark);  //气球被打中后同时分数增加
+}
+//分数
+var score={
+    scorebox:$('<div class="score"></div>'),
+    mark:0,
+    born:function(){
+        this.update(0);
+        $("body").append(this.scorebox);
+    },
+    update:function(s){
+        this.mark+=s;
+        this.scorebox.html("得分:"+this.mark);
+    }
+}
+//枪
+/*function gun(){
+    this.gun=$('<div class="gunBox"></div>');
+    $("body").append(this.gun);
+    var othis = this;
+    this.move = function(){
+        document.addEventListener('mousemove',function(e){
+            othis.gun.css("left","e.clientX - 48+'px'");     //瞄准器距左边的距离为鼠标位置-图片长宽的一半
+            othis.gun.css("top","e.clientY - 48+'px'");
+            othis.gun.css("display","block");
+        })
+    }
+}*/
+function gun(){
+    this.gun=document.createElement("div")
+    this.gun.className="gunBox"
+    document.body.appendChild(this.gun);
+    var othis = this;
+    this.move = function(){
+        document.addEventListener('mousemove',function(e){
+            othis.gun.style.left = e.clientX - 48+'px';
+            othis.gun.style.top = e.clientY - 48+'px';
+            othis.gun.style.display = "block";
+        })
+    }
+
+}
+//总控制
+game = {
+    frameIndex:0,   //
+    ballNumber:5,      //规定页面总气球数
+    cloudNumber:3,     //云数
+    currentBallNumber:0,    //当前页面累计球数
+    actor:[],      //加入云和枪
+    start:function(){
+        new bg().born();      //制作背景
+        score.born();           //制作分数栏，初始为0
+        this.actor.push(new gun());      //初始化一把枪并加入actor
+        var othis = this;
+        setInterval(function(){
+            //让小球每0.5秒出现一个
+            othis.frameIndex++;
+            if(othis.frameIndex%10 == 0 && othis.currentBallNumber<othis.ballNumber){//要求每刷新页面10n次（0.5秒）且页面总球数不超5个
+                othis.currentBallNumber++;    //给当前页面气球数+1
+                othis.actor.push(new ball());  //制作一个新气球
+            }
+            for(var j=0;j<othis.actor.length;j++){
+                othis.actor[j].move();   //让每个气球移动
+            }
+        },50)
+        $(document).click(function(e){
+               //绑定枪打击事件
+                for( var i=0;i<othis.actor.length;i++ ){
+                    if(othis.actor[i].constructor == ball){    //筛选actor对象是气球
+                        if(Math.pow(e.clientX-othis.actor[i].ball.offsetLeft-48,2)+Math.pow(e.clientY-othis.actor[i].ball.offsetTop-48,2)<=Math.pow(48,2)){
+                            //console.info('被击中了');        //Math.pow(4,3);==》  4*4*4
+                            othis.actor[i].goDie();
+                        }
+                    }
+                }
+        })
+    }
+}
+game.start();
+</script>
+</body>
+</html>
